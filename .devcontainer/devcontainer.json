@@ -1,0 +1,16 @@
+{
+    "name": "Vue2 Dev",
+    "build": {
+      "dockerfile": "Dockerfile"
+    },
+    "forwardPorts": [8080], // 转发 Vue 开发服务器的默认端口
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "dbaeumer.vscode-eslint",
+          "octref.vetur" // Vue2 推荐使用 Vetur 扩展
+        ]
+      }
+    },
+    "postCreateCommand": " /workspaces/simple-micro-app/examples/base/vue2 && pnpm install" // 自动安装依赖
+  }

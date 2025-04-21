@@ -1,4 +1,5 @@
 import loadHtml from './source.js';
+import Sandbox from './sandbox.js';
 
 export const appInstanceMap = new Map(); // 存放微应用实例
 
@@ -15,6 +16,8 @@ export default class CreateApp {
         this.container = container; // 容器元素,micro-app元素
         this.status = 'loading'; // 组件状态，created,loading,mount,unmount
         loadHtml(this); // 加载静态资源
+
+        this.sandbox = new Sandbox(); // 创建沙箱实例
     }
 
     // 存放应用的静态资源
@@ -73,9 +76,14 @@ export default class CreateApp {
         // 将格式化后的dom节点插入到容器中
         this.container.appendChild(fragment);
 
+        // sandbox
+        this.sandbox.start(); // 启动沙箱
+
         // 执行js
         this.source.scripts.forEach((info) => {
-            (0, eval)(info.code);
+            // (0, eval)(info.code);
+            // 修改js作用域
+            (0, eval)(this.sandbox.bindScope(info.code));
         });
 
         // 标记应用为已渲染
@@ -102,6 +110,8 @@ export default class CreateApp {
 
         this.status = 'unmount'; // 标记应用为已卸载
         this.container = null; // 清空容器
+
+        this.sandbox.stop(); // 停止沙箱
         if (destory) {
             // 当destory为true时，删除应用的实例，此时所有静态资源失去了引用，自动被浏览器回收。
             appInstanceMap.delete(this.name); // 删除微应用实例

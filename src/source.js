@@ -27,7 +27,26 @@ export default function loadHtml (app) {
 
             // 进一步提取 js,css 等静态资源
             // TODO:
-            // extractSourceDom(htmlDom, app);
+            extractSourceDom(htmlDom, app);
+
+            // 获取micro-app-head和micro-app-body元素
+            const microAppHead = htmlDom.querySelector('micro-app-head');
+            const microAppBody = htmlDom.querySelector('micro-app-body');
+
+            // 如果有远程css资源，通过fetch请求
+            if (app.source.links.size > 0) {
+                fetchLinksFromHtml(app, microAppHead, htmlDom);
+            } else {
+                app.onLoad(htmlDom);
+            }
+
+            // 如果有远程js资源，通过fetch请求
+            if (app.source.scripts.size > 0) {
+                fetchScriptsFromHtml(app, microAppBody, htmlDom);
+            } else {
+                app.onLoad(htmlDom);
+            }
+
         })
         .catch((err) => {
             console.error('load html error', err);
@@ -89,4 +108,72 @@ function extractSourceDom (parent, app) {
     }
 
     // 已经拿到了html中的css、js等静态资源的地址，接下来就是请求这些地址，拿到资源的内容
+}
+
+/**
+ * 请求link远程资源，css资源会转化为style标签插入DOM中
+ * @param app 应用实例
+ * @param microAppHead micro-app-head元素
+ * @param htmlDom html Dom元素
+ */
+export function fetchLinksFromHtml (app, microAppHead, htmlDom) {
+    const linkEntries = Array.from(app.source.links.entries());
+    console.log('linkEntries', linkEntries);
+    // 通过fetch请求所有css资源
+    const fetchLinkPromise = [];
+    for (const [url] of linkEntries) {
+        fetchLinkPromise.push(fetchSource(url));
+    }
+    
+    Promise.all(fetchLinkPromise)
+        .then(res => {
+            for (let i = 0; i < res.length; i++) {
+                const code = res[i];
+                // 拿到css资源放入style元素并插入到micro-app-head中
+                const link2Style = document.createElement('style');
+                link2Style.textContent = code;
+                microAppHead.appendChild(link2Style);
+
+                // 将代码放入缓存中，再次渲染时可以从缓存中获取
+                linkEntries[i][1].code = code;
+            }
+
+            // 处理完成后执行onLoad
+            app.onLoad(htmlDom);
+        })
+        .catch(err => {
+            console.error('fetch link error', err);
+        });
+}
+
+/**
+ * 请求js远程资源，而js不会立即执行，我们会在应用的mount方法中执行js
+ * @param app 应用实例
+ * @param microAppHead micro-app-head元素
+ * @param htmlDom html Dom元素
+ */
+export function fetchScriptsFromHtml (app, microAppHead, htmlDom) {
+    const scriptEntries = Array.from(app.source.scripts.entries());
+    console.log('scriptEntries', scriptEntries);
+    // 通过fetch请求所有js资源
+    const fetchScriptPromise = [];
+    for (const [url, info] of scriptEntries) {
+        // 如果是内联脚本，则不需要请求远程资源
+        fetchScriptPromise.push(info.code ? Promise.resolve(info.code) : fetchSource(url));
+    }
+    
+    Promise.all(fetchScriptPromise)
+        .then(res => {
+            for (let i = 0; i < res.length; i++) {
+                const code = res[i];
+                // 将代码放入缓存中，再次渲染时可以从缓存中获取
+                scriptEntries[i][1].code = code;
+            }
+
+            // 处理完成后执行onLoad
+            app.onLoad(htmlDom);
+        })
+        .catch(err => {
+            console.error('fetch script error', err);
+        });
 }

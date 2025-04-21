@@ -1,3 +1,5 @@
+import loadHtml from './source.js';
+
 export const appInstanceMap = new Map(); // 存放微应用实例
 
 /**
@@ -7,9 +9,13 @@ export const appInstanceMap = new Map(); // 存放微应用实例
  * 这个类的实例会在 connectedCallback 中被创建。
  */
 export default class CreateApp {
-    constructor() {}
-
-    status = 'created'; // 组件状态，created,loading,mount,unmount
+    constructor({ name, url, container }) {
+        this.name = name; // 微应用名称
+        this.url = url; // 微应用地址
+        this.container = container; // 容器元素,micro-app元素
+        this.status = 'loading'; // 组件状态，created,loading,mount,unmount
+        loadHtml(this); // 加载静态资源
+    }
 
     // 存放应用的静态资源
     source = {
@@ -20,7 +26,7 @@ export default class CreateApp {
     /**
      * 资源加载完时执行
      */
-    onLoad () {
+    onLoad (htmlDom) {
         try {
             console.log('onLoad 资源加载完毕 -----> ');
             console.log('this.source', this.source);
